@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GaslessGameFi - Web Integration Example</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        h1 {
+            color: #00ff88;
+            text-align: center;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-box {
+            background: #3a3a3a;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            color: #00ff88;
+            margin-top: 10px;
+        }
+        button {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #00cc6a;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .actions {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .status {
+            background: #3a3a3a;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        .success { color: #00ff88; }
+        .error { color: #ff4444; }
+        .tx-link {
+            color: #00ccff;
+            text-decoration: none;
+        }
+        .network-selector {
+            margin: 20px 0;
+            text-align: center;
+        }
+        select {
+            background: #3a3a3a;
+            color: #fff;
+            border: 1px solid #555;
+            padding: 8px 16px;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎮 GaslessGameFi Demo</h1>
+        
+        <div class="network-selector">
+            <label for="network">Select Network: </label>
+            <select id="network">
+                <option value="polygon">Polygon</option>
+                <option value="polygon-mumbai">Mumbai Testnet</option>
+                <option value="arbitrum">Arbitrum</option>
+                <option value="skale">SKALE</option>
+            </select>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-box">
+                <div>Transactions Sent</div>
+                <div class="stat-value" id="txCount">0</div>
+            </div>
+            <div class="stat-box">
+                <div>Gas Saved</div>
+                <div class="stat-value" id="gasSaved">$0.00</div>
+            </div>
+            <div class="stat-box">
+                <div>Network Status</div>
+                <div class="stat-value" id="networkStatus">Ready</div>
+            </div>
+        </div>
+        
+        <div class="status" id="status">Ready to send gasless transactions!</div>
+        
+        <div class="actions">
+            <button onclick="mintNFT()">Mint Hero NFT</button>
+            <button onclick="updateScore()">Update Score</button>
+            <button onclick="battle()">Battle Heroes</button>
+            <button onclick="checkBalance()">Check Relayer Balance</button>
+        </div>
+        
+        <div class="status" id="lastTx" style="display: none;">
+            Last Transaction: <a href="#" target="_blank" class="tx-link" id="txLink"></a>
+        </div>
+    </div>
+    
+    <script>
+        const RELAY_URL = 'https://gaslessgamefi.azurewebsites.net';
+        const API_KEY = 'your-api-key';
+        const GAME_ID = 'web-demo';
+        const CONTRACT_ADDRESS = '0x1234567890123456789012345678901234567890';
+        
+        let txCount = 0;
+        let totalGasSaved = 0;
+        
+        // Initialize
+        async function init() {
+            try {
+                const response = await fetch(`${RELAY_URL}/api/v1/relay/networks`, {
+                    headers: {
+                        'X-API-Key': API_KEY
+                    }
+                });
+                const data = await response.json();
+                console.log('Supported networks:', data.networks);
+                updateStatus('Connected to relay service', 'success');
+            } catch (error) {
+                updateStatus('Failed to connect to relay', 'error');
+            }
+        }
+        
+        // Mint NFT
+        async function mintNFT() {
+            updateStatus('Minting NFT...');
+            
+            const transaction = {
+                network: document.getElementById('network').value,
+                transaction: {
+                    to: CONTRACT_ADDRESS,
+                    data: '0x1249c58b', // mintHero() function selector
+                    value: '0'
+                },
+                gameId: GAME_ID,
+                userId: 'player_' + Math.random().toString(36).substr(2, 9)
+            };
+            
+            try {
+                // First estimate gas
+                const estimateResponse = await fetch(`${RELAY_URL}/api/v1/relay/estimate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY
+                    },
+                    body: JSON.stringify({
+                        network: transaction.network,
+                        transaction: transaction.transaction
+                    })
+                });
+                
+                const estimate = await estimateResponse.json();
+                const gasCost = parseFloat(estimate.estimatedCost || 0);
+                totalGasSaved += gasCost;
+                document.getElementById('gasSaved').textContent = `$${totalGasSaved.toFixed(2)}`;
+                
+                // Now relay the transaction
+                const relayResponse = await fetch(`${RELAY_URL}/api/v1/relay/transaction`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY
+                    },
+                    body: JSON.stringify(transaction)
+                });
+                
+                const result = await relayResponse.json();
+                
+                if (result.success) {
+                    txCount++;
+                    document.getElementById('txCount').textContent = txCount;
+                    updateStatus('NFT minted successfully!', 'success');
+                    showTransaction(result.result.transactionHash, transaction.network);
+                } else {
+                    updateStatus(`Failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Update player score
+        async function updateScore() {
+            updateStatus('Updating score...');
+            
+            // In a real game, this would be called by the game server
+            const data = encodeUpdateScore('0x1234...', 50); // player address and points
+            
+            const transaction = {
+                network: document.getElementById('network').value,
+                transaction: {
+                    to: CONTRACT_ADDRESS,
+                    data: data,
+                    value: '0'
+                },
+                gameId: GAME_ID,
+                userId: 'game_server'
+            };
+            
+            try {
+                const response = await fetch(`${RELAY_URL}/api/v1/relay/transaction`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY
+                    },
+                    body: JSON.stringify(transaction)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    txCount++;
+                    document.getElementById('txCount').textContent = txCount;
+                    updateStatus('Score updated!', 'success');
+                    showTransaction(result.result.transactionHash, transaction.network);
+                } else {
+                    updateStatus(`Failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Battle function
+        async function battle() {
+            updateStatus('Initiating battle...');
+            
+            const data = encodeBattle(1, 2); // Hero IDs
+            
+            const transaction = {
+                network: document.getElementById('network').value,
+                transaction: {
+                    to: CONTRACT_ADDRESS,
+                    data: data,
+                    value: '0'
+                },
+                gameId: GAME_ID,
+                userId: 'player_' + Math.random().toString(36).substr(2, 9)
+            };
+            
+            try {
+                const response = await fetch(`${RELAY_URL}/api/v1/relay/transaction`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-API-Key': API_KEY
+                    },
+                    body: JSON.stringify(transaction)
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    txCount++;
+                    document.getElementById('txCount').textContent = txCount;
+                    updateStatus('Battle completed!', 'success');
+                    showTransaction(result.result.transactionHash, transaction.network);
+                } else {
+                    updateStatus(`Failed: ${result.error}`, 'error');
+                }
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Check relayer balance
+        async function checkBalance() {
+            const network = document.getElementById('network').value;
+            updateStatus('Checking balance...');
+            
+            try {
+                const response = await fetch(`${RELAY_URL}/api/v1/relay/balance/${network}`, {
+                    headers: {
+                        'X-API-Key': API_KEY
+                    }
+                });
+                
+                const data = await response.json();
+                updateStatus(`Relayer balance: ${data.balance} ETH`, 'success');
+            } catch (error) {
+                updateStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Helper functions
+        function updateStatus(message, type = '') {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${type}`;
+        }
+        
+        function showTransaction(hash, network) {
+            const txDiv = document.getElementById('lastTx');
+            const txLink = document.getElementById('txLink');
+            
+            txDiv.style.display = 'block';
+            txLink.textContent = hash.substring(0, 10) + '...' + hash.substring(hash.length - 8);
+            
+            // Set block explorer URL based on network
+            const explorers = {
+                'polygon': 'https://polygonscan.com/tx/',
+                'polygon-mumbai': 'https://mumbai.polygonscan.com/tx/',
+                'arbitrum': 'https://arbiscan.io/tx/',
+                'skale': 'https://explorer.skale.network/tx/'
+            };
+            
+            txLink.href = explorers[network] + hash;
+        }
+        
+        // Simplified encoding functions (use ethers.js in production)
+        function encodeUpdateScore(player, points) {
+            // updateScore(address,uint256) function selector
+            return '0x12345678' + player.substring(2).padStart(64, '0') + points.toString(16).padStart(64, '0');
+        }
+        
+        function encodeBattle(hero1, hero2) {
+            // battle(uint256,uint256) function selector
+            return '0x87654321' + hero1.toString(16).padStart(64, '0') + hero2.toString(16).padStart(64, '0');
+        }
+        
+        // Initialize on load
+        init();
+    </script>
+</body>
+</html>
