@@ -1,0 +1,40 @@
+{
+  "name": "com.gaslessgamefi.sdk",
+  "version": "1.0.0",
+  "displayName": "GaslessGameFi SDK",
+  "description": "Unity SDK for gasless Web3 gaming transactions using meta-transactions (EIP-2771)",
+  "unity": "2019.4",
+  "unityRelease": "0f1",
+  "dependencies": {},
+  "keywords": [
+    "web3",
+    "blockchain",
+    "gasless",
+    "gaming",
+    "meta-transactions"
+  ],
+  "author": {
+    "name": "GaslessGameFi",
+    "email": "support@gaslessgamefi.com",
+    "url": "https://github.com/thebunnygoyal/gaslessgamefi-relay"
+  },
+  "documentationUrl": "https://github.com/thebunnygoyal/gaslessgamefi-relay/wiki",
+  "changelogUrl": "https://github.com/thebunnygoyal/gaslessgamefi-relay/releases",
+  "licensesUrl": "https://github.com/thebunnygoyal/gaslessgamefi-relay/blob/main/LICENSE",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thebunnygoyal/gaslessgamefi-relay.git"
+  },
+  "samples": [
+    {
+      "displayName": "Basic Integration",
+      "description": "Shows how to integrate gasless transactions in your game",
+      "path": "Samples~/BasicIntegration"
+    },
+    {
+      "displayName": "NFT Minting Example",
+      "description": "Example of gasless NFT minting in Unity",
+      "path": "Samples~/NFTMinting"
+    }
+  ]
+}
